@@ -12,12 +12,20 @@ type ProduitPanier = {
 
 export default function PanierPage() {
   const [panier, setPanier] = useState<ProduitPanier[]>([]);
+  const [chargement, setChargement] = useState(true);
 
   useEffect(() => {
-    const panierSauvegarde = localStorage.getItem("panier-zaynelora");
-    if (panierSauvegarde) {
-      setPanier(JSON.parse(panierSauvegarde));
-    }
+    const timer = setTimeout(() => {
+      const panierSauvegarde = localStorage.getItem("panier-zaynelora");
+
+      if (panierSauvegarde) {
+        setPanier(JSON.parse(panierSauvegarde));
+      }
+
+      setChargement(false);
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const sauvegarderPanier = (nouveauPanier: ProduitPanier[]) => {
@@ -60,6 +68,14 @@ export default function PanierPage() {
 
     return acc + prixNombre * produit.quantite;
   }, 0);
+
+  if (chargement) {
+    return (
+      <main className="min-h-screen bg-[#faf8f5] px-6 py-20 text-center text-[#6f5643]">
+        Chargement du panier...
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#faf8f5] text-[#2d2d2d]">
