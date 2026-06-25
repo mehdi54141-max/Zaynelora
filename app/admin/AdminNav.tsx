@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 const liens = [
@@ -33,11 +33,14 @@ const liens = [
 
 export default function AdminNav() {
   const pathname = usePathname();
-  const router = useRouter();
 
   const deconnexion = async () => {
     await supabase.auth.signOut();
-    router.push("/admin-login");
+
+    localStorage.clear();
+    sessionStorage.clear();
+
+    window.location.href = "/admin-login";
   };
 
   return (
