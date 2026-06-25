@@ -4,23 +4,28 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import AdminNav from "../AdminNav";
 
-type Order = {
+type Commande = {
   id: string;
+  reference: string;
   created_at: string;
-  customer_name: string;
-  customer_email: string;
+  client_nom: string;
+  client_email: string;
+  client_telephone: string;
+  adresse_livraison: string;
+  produits: unknown[];
   total: number;
-  status: string;
+  statut: string;
+  stripe_session_id: string;
 };
 
 export default function CommandesPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [commandes, setCommandes] = useState<Commande[]>([]);
   const [erreur, setErreur] = useState("");
 
   useEffect(() => {
     const charger = async () => {
       const { data, error } = await supabase
-        .from("orders")
+        .from("commandes")
         .select("*")
         .order("created_at", { ascending: false });
 
@@ -29,7 +34,7 @@ export default function CommandesPage() {
         return;
       }
 
-      setOrders(data || []);
+      setCommandes(data || []);
     };
 
     charger();
@@ -55,6 +60,7 @@ export default function CommandesPage() {
             <table className="w-full">
               <thead className="bg-[#f5eee8]">
                 <tr>
+                  <th className="p-4 text-left">Référence</th>
                   <th className="p-4 text-left">Cliente</th>
                   <th className="p-4 text-left">Email</th>
                   <th className="p-4 text-left">Total</th>
@@ -64,21 +70,26 @@ export default function CommandesPage() {
               </thead>
 
               <tbody>
-                {orders.length === 0 ? (
+                {commandes.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-gray-500">
+                    <td colSpan={6} className="p-8 text-center text-gray-500">
                       Aucune commande pour le moment.
                     </td>
                   </tr>
                 ) : (
-                  orders.map((order) => (
-                    <tr key={order.id} className="border-t">
-                      <td className="p-4">{order.customer_name}</td>
-                      <td className="p-4">{order.customer_email}</td>
-                      <td className="p-4">{Number(order.total).toFixed(2)} €</td>
-                      <td className="p-4">{order.status}</td>
+                  commandes.map((commande) => (
+                    <tr key={commande.id} className="border-t">
+                      <td className="p-4">{commande.reference}</td>
+                      <td className="p-4">{commande.client_nom}</td>
+                      <td className="p-4">{commande.client_email}</td>
                       <td className="p-4">
-                        {new Date(order.created_at).toLocaleDateString("fr-FR")}
+                        {Number(commande.total).toFixed(2)} €
+                      </td>
+                      <td className="p-4">{commande.statut}</td>
+                      <td className="p-4">
+                        {new Date(commande.created_at).toLocaleDateString(
+                          "fr-FR"
+                        )}
                       </td>
                     </tr>
                   ))
