@@ -18,27 +18,55 @@ type Commande = {
   stripe_session_id: string;
 };
 
+const statuts = ["Préparation", "Expédiée", "Livrée", "Annulée"];
+
 export default function CommandesPage() {
   const [commandes, setCommandes] = useState<Commande[]>([]);
   const [erreur, setErreur] = useState("");
+  const [message, setMessage] = useState("");
+
+  const chargerCommandes = async () => {
+    const { data, error } = await supabase
+      .from("commandes")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setErreur(error.message);
+      return;
+    }
+
+    setCommandes(data || []);
+  };
 
   useEffect(() => {
-    const charger = async () => {
-      const { data, error } = await supabase
-        .from("commandes")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        setErreur(error.message);
-        return;
-      }
-
-      setCommandes(data || []);
-    };
-
-    charger();
+    chargerCommandes();
   }, []);
+
+  const modifierStatut = async (id: string, nouveauStatut: string) => {
+    setErreur("");
+    setMessage("");
+
+    const { error } = await supabase
+      .from("commandes")
+      .update({ statut: nouveauStatut })
+      .eq("id", id);
+
+    if (error) {
+      setErreur(error.message);
+      return;
+    }
+
+    setCommandes((commandesActuelles) =>
+      commandesActuelles.map((commande) =>
+        commande.id === id
+          ? { ...commande, statut: nouveauStatut }
+          : commande
+      )
+    );
+
+    setMessage("Statut mis à jour.");
+  };
 
   return (
     <main className="min-h-screen bg-[#faf8f5] px-6 py-20">
@@ -53,6 +81,12 @@ export default function CommandesPage() {
           {erreur && (
             <div className="mb-6 rounded-2xl bg-red-50 p-4 text-red-600">
               Erreur Supabase : {erreur}
+            </div>
+          )}
+
+          {message && (
+            <div className="mb-6 rounded-2xl bg-green-50 p-4 text-green-700">
+              {message}
             </div>
           )}
 
@@ -85,7 +119,21 @@ export default function CommandesPage() {
                       <td className="p-4">
                         {Number(commande.total).toFixed(2)} €
                       </td>
-                      <td className="p-4">{commande.statut}</td>
+                      <td className="p-4">
+                        <select
+                          value={commande.statut}
+                          onChange={(e) =>
+                            modifierStatut(commande.id, e.target.value)
+                          }
+                          className="rounded-xl border border-[#ead7c6] bg-white px-3 py-2"
+                        >
+                          {statuts.map((statut) => (
+                            <option key={statut} value={statut}>
+                              {statut}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
                       <td className="p-4">
                         {new Date(commande.created_at).toLocaleDateString(
                           "fr-FR"
