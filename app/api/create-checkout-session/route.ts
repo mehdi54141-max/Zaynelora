@@ -14,6 +14,16 @@ export async function POST(request: Request) {
   try {
     const panier: ProduitPanier[] = await request.json();
 
+    const totalPanier = panier.reduce((total, produit) => {
+      const prixNombre = Number(
+        produit.prix.replace("€", "").replace(",", ".").trim()
+      );
+
+      return total + prixNombre * produit.quantite;
+    }, 0);
+
+    const livraisonOfferte = totalPanier >= 80;
+
     const lineItems = panier.map((produit) => {
       const prixNombre = Number(
         produit.prix.replace("€", "").replace(",", ".").trim()
@@ -33,26 +43,59 @@ export async function POST(request: Request) {
     });
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
       mode: "payment",
+
+      automatic_payment_methods: {
+        enabled: true,
+      },
+
       line_items: lineItems,
 
       billing_address_collection: "required",
+
       shipping_address_collection: {
         allowed_countries: ["FR", "BE", "CH", "LU"],
       },
+
+      shipping_options: [
+        {
+          shipping_rate_data: {
+            type: "fixed_amount",
+            fixed_amount: {
+              amount: livraisonOfferte ? 0 : 490,
+              currency: "eur",
+            },
+            display_name: livraisonOfferte
+              ? "Livraison offerte"
+              : "Livraison standard",
+            delivery_estimate: {
+              minimum: {
+                unit: "business_day",
+                value: 2,
+              },
+              maximum: {
+                unit: "business_day",
+                value: 5,
+              },
+            },
+          },
+        },
+      ],
+
       phone_number_collection: {
         enabled: true,
       },
+
       customer_creation: "always",
 
       metadata: {
         source: "zaynelora",
         panier: JSON.stringify(panier),
+        livraison: livraisonOfferte ? "offerte" : "4.90",
       },
 
-      success_url: "http://localhost:3000/confirmation",
-      cancel_url: "http://localhost:3000/panier",
+      success_url: "https://www.zaynelora.com/confirmation",
+      cancel_url: "https://www.zaynelora.com/panier",
     });
 
     return NextResponse.json({
