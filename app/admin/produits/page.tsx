@@ -31,6 +31,8 @@ const produitVide = {
 export default function AdminProduitsPage() {
   const [produits, setProduits] = useState<Produit[]>([]);
   const [formulaire, setFormulaire] = useState(produitVide);
+  const [image, setImage] = useState<File | null>(null);
+  const [envoiImage, setEnvoiImage] = useState(false);
   const [erreur, setErreur] = useState("");
   const [message, setMessage] = useState("");
 
@@ -52,41 +54,85 @@ export default function AdminProduitsPage() {
     chargerProduits();
   }, []);
 
+  const creerSlug = (texte: string) =>
+    texte
+      .toLowerCase()
+      .trim()
+      .replaceAll(" ", "-")
+      .replaceAll("é", "e")
+      .replaceAll("è", "e")
+      .replaceAll("ê", "e")
+      .replaceAll("à", "a")
+      .replaceAll("'", "-");
+
+  const envoyerImage = async () => {
+    if (!image) {
+      return formulaire.image_url;
+    }
+
+    setEnvoiImage(true);
+
+    const extension = image.name.split(".").pop();
+    const nomFichier = `${Date.now()}-${creerSlug(image.name)}.${extension}`;
+
+    const { error } = await supabase.storage
+      .from("produits")
+      .upload(nomFichier, image, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (error) {
+      setEnvoiImage(false);
+      throw new Error(error.message);
+    }
+
+    const { data } = supabase.storage
+      .from("produits")
+      .getPublicUrl(nomFichier);
+
+    setEnvoiImage(false);
+
+    return data.publicUrl;
+  };
+
   const ajouterProduit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErreur("");
     setMessage("");
 
-    const slug =
-      formulaire.slug ||
-      formulaire.nom
-        .toLowerCase()
-        .replaceAll(" ", "-")
-        .replaceAll("é", "e")
-        .replaceAll("è", "e")
-        .replaceAll("ê", "e")
-        .replaceAll("à", "a");
+    try {
+      const slug = formulaire.slug || creerSlug(formulaire.nom);
+      const imageUrl = await envoyerImage();
 
-    const { error } = await supabase.from("produits").insert({
-      nom: formulaire.nom,
-      slug,
-      collection: formulaire.collection,
-      description: formulaire.description,
-      prix: Number(formulaire.prix),
-      couleur: formulaire.couleur,
-      image_url: formulaire.image_url,
-      stock: Number(formulaire.stock),
-      actif: true,
-    });
+      const { error } = await supabase.from("produits").insert({
+        nom: formulaire.nom,
+        slug,
+        collection: formulaire.collection,
+        description: formulaire.description,
+        prix: Number(formulaire.prix),
+        couleur: formulaire.couleur,
+        image_url: imageUrl,
+        stock: Number(formulaire.stock),
+        actif: true,
+      });
 
-    if (error) {
-      setErreur(error.message);
-      return;
+      if (error) {
+        setErreur(error.message);
+        return;
+      }
+
+      setFormulaire(produitVide);
+      setImage(null);
+      setMessage("Produit ajouté avec succès.");
+      chargerProduits();
+    } catch (error) {
+      setErreur(
+        error instanceof Error
+          ? error.message
+          : "Erreur lors de l'ajout du produit."
+      );
     }
-
-    setFormulaire(produitVide);
-    setMessage("Produit ajouté.");
-    chargerProduits();
   };
 
   const supprimerProduit = async (id: string) => {
@@ -204,7 +250,7 @@ export default function AdminProduitsPage() {
             </div>
 
             <input
-              placeholder="URL image"
+              placeholder="URL image ou upload ci-dessous"
               value={formulaire.image_url}
               onChange={(e) =>
                 setFormulaire({ ...formulaire, image_url: e.target.value })
@@ -212,8 +258,24 @@ export default function AdminProduitsPage() {
               className="rounded-2xl border p-4"
             />
 
-            <button className="rounded-full bg-[#6f5643] px-8 py-4 text-white">
-              Ajouter le produit
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImage(e.target.files?.[0] || null)}
+              className="rounded-2xl border p-4"
+            />
+
+            {image && (
+              <p className="text-sm text-gray-600">
+                Image sélectionnée : {image.name}
+              </p>
+            )}
+
+            <button
+              disabled={envoiImage}
+              className="rounded-full bg-[#6f5643] px-8 py-4 text-white disabled:opacity-50"
+            >
+              {envoiImage ? "Envoi de l'image..." : "Ajouter le produit"}
             </button>
           </form>
 
@@ -221,6 +283,7 @@ export default function AdminProduitsPage() {
             <table className="w-full">
               <thead className="bg-[#f5eee8]">
                 <tr>
+                  <th className="p-4 text-left">Image</th>
                   <th className="p-4 text-left">Nom</th>
                   <th className="p-4 text-left">Collection</th>
                   <th className="p-4 text-left">Prix</th>
@@ -232,16 +295,31 @@ export default function AdminProduitsPage() {
               <tbody>
                 {produits.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-gray-500">
+                    <td colSpan={6} className="p-8 text-center text-gray-500">
                       Aucun produit pour le moment.
                     </td>
                   </tr>
                 ) : (
                   produits.map((produit) => (
                     <tr key={produit.id} className="border-t">
+                      <td className="p-4">
+                        {produit.image_url ? (
+                          <img
+                            src={produit.image_url}
+                            alt={produit.nom}
+                            className="h-16 w-16 rounded-xl object-cover"
+                          />
+                        ) : (
+                          <span className="text-sm text-gray-400">
+                            Aucune image
+                          </span>
+                        )}
+                      </td>
                       <td className="p-4">{produit.nom}</td>
                       <td className="p-4">{produit.collection}</td>
-                      <td className="p-4">{Number(produit.prix).toFixed(2)} €</td>
+                      <td className="p-4">
+                        {Number(produit.prix).toFixed(2)} €
+                      </td>
                       <td className="p-4">{produit.stock}</td>
                       <td className="p-4">
                         <button
@@ -260,5 +338,7 @@ export default function AdminProduitsPage() {
         </section>
       </div>
     </main>
+  );
+}
   );
 }
