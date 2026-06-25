@@ -34,21 +34,40 @@ export async function POST(request: Request) {
         ? JSON.parse(session.metadata.panier)
         : [];
 
-      const customerName =
+      const clientNom =
         session.customer_details?.name || "Cliente Zaynelora";
 
-      const customerEmail =
+      const clientEmail =
         session.customer_details?.email || "email-inconnu@zaynelora.fr";
+
+      const clientTelephone =
+        session.customer_details?.phone || "";
+
+      const adresseLivraison = session.customer_details?.address
+        ? `${session.customer_details.address.line1 || ""} ${
+            session.customer_details.address.line2 || ""
+          }, ${session.customer_details.address.postal_code || ""} ${
+            session.customer_details.address.city || ""
+          }, ${session.customer_details.address.country || ""}`
+        : "";
 
       const total = session.amount_total ? session.amount_total / 100 : 0;
 
-      const { error } = await supabaseAdmin.from("orders").insert({
-        customer_name: customerName,
-        customer_email: customerEmail,
+      const reference = `ZAY-${new Date()
+        .toISOString()
+        .slice(0, 10)
+        .replaceAll("-", "")}-${session.id.slice(-6).toUpperCase()}`;
+
+      const { error } = await supabaseAdmin.from("commandes").insert({
+        reference,
+        client_nom: clientNom,
+        client_email: clientEmail,
+        client_telephone: clientTelephone,
+        adresse_livraison: adresseLivraison,
+        produits: panier,
         total,
-        status: "Préparation",
+        statut: "Préparation",
         stripe_session_id: session.id,
-        items: panier,
       });
 
       if (error) {
