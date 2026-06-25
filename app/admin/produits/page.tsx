@@ -65,60 +65,38 @@ export default function AdminProduitsPage() {
       .replaceAll("à", "a")
       .replaceAll("'", "-");
 
-  const envoyerImage = async () => {
-    if (!image) {
-      return formulaire.image_url;
-    }
-
-    setEnvoiImage(true);
-
-    const extension = image.name.split(".").pop();
-    const nomFichier = `${Date.now()}-${creerSlug(image.name)}.${extension}`;
-
-    const { error } = await supabase.storage
-      .from("produits")
-      .upload(nomFichier, image, {
-        cacheControl: "3600",
-        upsert: false,
-      });
-
-    if (error) {
-      setEnvoiImage(false);
-      throw new Error(error.message);
-    }
-
-    const { data } = supabase.storage
-      .from("produits")
-      .getPublicUrl(nomFichier);
-
-    setEnvoiImage(false);
-
-    return data.publicUrl;
-  };
-
   const ajouterProduit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErreur("");
     setMessage("");
+    setEnvoiImage(true);
 
     try {
       const slug = formulaire.slug || creerSlug(formulaire.nom);
-      const imageUrl = await envoyerImage();
 
-      const { error } = await supabase.from("produits").insert({
-        nom: formulaire.nom,
-        slug,
-        collection: formulaire.collection,
-        description: formulaire.description,
-        prix: Number(formulaire.prix),
-        couleur: formulaire.couleur,
-        image_url: imageUrl,
-        stock: Number(formulaire.stock),
-        actif: true,
+      const formData = new FormData();
+      formData.append("nom", formulaire.nom);
+      formData.append("slug", slug);
+      formData.append("collection", formulaire.collection);
+      formData.append("description", formulaire.description);
+      formData.append("prix", formulaire.prix);
+      formData.append("couleur", formulaire.couleur);
+      formData.append("image_url", formulaire.image_url);
+      formData.append("stock", formulaire.stock);
+
+      if (image) {
+        formData.append("image", image);
+      }
+
+      const response = await fetch("/api/admin/produits", {
+        method: "POST",
+        body: formData,
       });
 
-      if (error) {
-        setErreur(error.message);
+      const resultat = await response.json();
+
+      if (!response.ok) {
+        setErreur(resultat.error || "Erreur lors de l'ajout du produit.");
         return;
       }
 
@@ -126,12 +104,10 @@ export default function AdminProduitsPage() {
       setImage(null);
       setMessage("Produit ajouté avec succès.");
       chargerProduits();
-    } catch (error) {
-      setErreur(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de l'ajout du produit."
-      );
+    } catch {
+      setErreur("Erreur lors de l'ajout du produit.");
+    } finally {
+      setEnvoiImage(false);
     }
   };
 
