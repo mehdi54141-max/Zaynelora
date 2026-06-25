@@ -1,12 +1,53 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import AdminNav from "./AdminNav";
 
+type Commande = {
+  id: string;
+  total: number;
+  statut: string;
+};
+
 export default function AdminPage() {
+  const [nbCommandes, setNbCommandes] = useState(0);
+  const [chiffreAffaires, setChiffreAffaires] = useState(0);
+  const [preparation, setPreparation] = useState(0);
+  const [expediees, setExpediees] = useState(0);
+
+  useEffect(() => {
+    const charger = async () => {
+      const { data, error } = await supabase
+        .from("commandes")
+        .select("id,total,statut");
+
+      if (error || !data) return;
+
+      setNbCommandes(data.length);
+
+      setChiffreAffaires(
+        data.reduce((total, commande) => total + Number(commande.total), 0)
+      );
+
+      setPreparation(
+        data.filter((c) => c.statut === "Préparation").length
+      );
+
+      setExpediees(
+        data.filter((c) => c.statut === "Expédiée").length
+      );
+    };
+
+    charger();
+  }, []);
+
   const statistiques = [
-    ["Commandes", "0"],
-    ["Chiffre d'affaires", "0,00 €"],
-    ["En préparation", "0"],
-    ["Expédiées", "0"],
+    ["Commandes", nbCommandes.toString()],
+    ["Chiffre d'affaires", `${chiffreAffaires.toFixed(2)} €`],
+    ["En préparation", preparation.toString()],
+    ["Expédiées", expediees.toString()],
   ];
 
   return (
@@ -25,8 +66,12 @@ export default function AdminPage() {
 
           <div className="mb-10 grid gap-6 md:grid-cols-4">
             {statistiques.map(([label, valeur]) => (
-              <div key={label} className="rounded-3xl bg-white p-6 shadow-sm">
+              <div
+                key={label}
+                className="rounded-3xl bg-white p-6 shadow-sm"
+              >
                 <p className="text-sm text-gray-500">{label}</p>
+
                 <h2 className="mt-2 text-4xl font-bold text-[#6f5643]">
                   {valeur}
                 </h2>
@@ -36,17 +81,16 @@ export default function AdminPage() {
 
           <div className="rounded-3xl bg-white p-8 shadow-sm">
             <h2 className="mb-4 text-2xl font-bold text-[#6f5643]">
-              Bienvenue dans votre espace administrateur.
+              Bienvenue dans votre espace administrateur
             </h2>
 
             <p className="mb-8 leading-8 text-gray-600">
-              Depuis cet espace, vous pourrez suivre les commandes, gérer les
-              statuts, consulter les clientes, contrôler les avis et préparer
-              l’évolution de Zaynelora.
+              Retrouvez ici toutes les statistiques de votre boutique
+              Zaynelora ainsi que vos commandes en temps réel.
             </p>
 
             <Link href="/admin/commandes">
-              <button className="rounded-full bg-[#6f5643] px-8 py-4 text-white">
+              <button className="rounded-full bg-[#6f5643] px-8 py-4 text-white transition hover:opacity-90">
                 Voir les commandes
               </button>
             </Link>
