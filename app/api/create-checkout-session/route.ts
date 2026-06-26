@@ -43,8 +43,10 @@ export async function POST(request: Request) {
     });
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
       mode: "payment",
+
+      payment_method_types: ["card"],
+
       line_items: lineItems,
 
       billing_address_collection: "required",

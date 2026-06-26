@@ -12,38 +12,38 @@ export default function AdminGuard({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [autorise, setAutorise] = useState(false);
-  const [chargement, setChargement] = useState(true);
+
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const verifierSession = async () => {
+    const verifier = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user || user.email !== ADMIN_EMAIL) {
+      if (!user) {
+        router.replace("/admin-login");
+        return;
+      }
+
+      if (user.email !== ADMIN_EMAIL) {
         await supabase.auth.signOut();
         router.replace("/admin-login");
         return;
       }
 
-      setAutorise(true);
-      setChargement(false);
+      setLoading(false);
     };
 
-    verifierSession();
+    verifier();
   }, [router]);
 
-  if (chargement) {
+  if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#faf8f5] text-[#6f5643]">
-        Vérification de la session...
+      <main className="flex min-h-screen items-center justify-center">
+        Vérification...
       </main>
     );
-  }
-
-  if (!autorise) {
-    return null;
   }
 
   return <>{children}</>;
